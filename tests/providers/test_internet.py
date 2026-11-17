@@ -477,6 +477,33 @@ class TestInternetProvider:
         multicast_address = provider.mac_address(multicast=True)
         assert int(multicast_address[0:2], base=16) % 2 == 1
 
+    def test_mac_address_highest_octets(self, faker):
+        provider = InternetProvider(faker)
+
+        # Verify randrange receives stop 0x100 to allow highest octets (0xFE for unicast, 0xFF for multicast)
+        with patch.object(provider.generator.random, "randrange", wraps=provider.generator.random.randrange) as mock_rand:
+            provider.mac_address()
+            mock_rand.assert_called_with(0x00, 0x100, 2)
+
+        with patch.object(provider.generator.random, "randrange", wraps=provider.generator.random.randrange) as mock_rand:
+            provider.mac_address(multicast=True)
+            mock_rand.assert_called_with(0x01, 0x100, 2)
+
+        found_unicast_fe = False
+        for _ in range(2000):
+            if provider.mac_address().startswith("fe:"):
+                found_unicast_fe = True
+                break
+
+        found_multicast_ff = False
+        for _ in range(2000):
+            if provider.mac_address(multicast=True).startswith("ff:"):
+                found_multicast_ff = True
+                break
+
+        assert found_unicast_fe, "mac_address() unicast failed to generate highest valid first octet 'fe'"
+        assert found_multicast_ff, "mac_address(multicast=True) failed to generate highest valid first octet 'ff'"
+
     def test_port_number(self, faker, num_samples):
         for _ in range(num_samples):
             assert 0 <= faker.port_number() <= 65535
