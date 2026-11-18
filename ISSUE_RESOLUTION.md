@@ -27,6 +27,11 @@ As a result, valid boundary octets (`fe` for unicast and `ff` for multicast) wer
 
 ---
 
+## Solution Approach
+1. **Verify Bitmask & Random Range Bounds:** `mac_address` generated the first octet using an off-by-one upper bound that excluded `0xFE` (highest valid unicast octet) and `0xFF` (highest valid multicast octet) when setting the multicast/unicast bit.
+2. **Fix Upper Bound Inclusivity:** Corrected the random integer range in `faker/providers/internet/__init__.py` so all valid 8-bit octets up to `0xFE` / `0xFF` are reachable with uniform distribution while still honoring the `multicast_provider` bit constraints.
+3. **TDD & Regression Safety:** Added `test_mac_address_highest_octets` in `tests/providers/test_internet.py` verifying both `0xFE` (unicast) and `0xFF` (multicast) octets can be produced.
+
 ## Solution
 Change the exclusive upper bound `stop` to `0x100` (256) for both parity-preserving `randrange` calls:
 1. `self.generator.random.randrange(0x00, 0x100, 2)`: produces all 128 even numbers from `0x00` through `0xFE` (254).
